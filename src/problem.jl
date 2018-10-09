@@ -178,7 +178,16 @@ function Base.show(io::IO, data::SchoolBusData)
     data.withBaseData && @printf(io, "- With %d schools.\n", length(data.schools))
     data.withRoutingScenarios && @printf(io, "- With routing scenarios computed: %.1f/school.\n",
                                 mean(length(scenarioList) for scenarioList in data.scenarios))
-    data.withFinalBuses && @printf(io, "- With %d buses assigned.\n", countBuses(data))
+    data.withFinalBuses && @printf(io, "- With %d buses assigned.\n", length(data.buses))
+end
+
+"""
+    Update all school start times at once
+"""
+function updateStartTimes!(data::SchoolBusData, starttimes)
+    data.schools = [School(school.id, school.originalId, school.position, school.dwelltime,
+                           starttimes[i]) for (i, school) in enumerate(data.schools)]
+    return data
 end
 
 """
