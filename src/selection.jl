@@ -477,9 +477,9 @@ end
 
 function routeBuses!(data::SchoolBusData)
     sg = buildScenarioGraph(data)
-    data.usedScenario = selectScenario(data, sg)
+    data.usedScenario = selectScenario(data, sg, OutputFlag=0)
     frg = buildFullRoutingGraph(data, data.usedScenario)
-    data.buses = solveFullRouting(data, frg)
+    data.buses = solveFullRouting(data, frg, OutputFlag=0)
     data.withFinalBuses = true
     return data
 end
