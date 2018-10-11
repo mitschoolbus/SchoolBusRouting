@@ -475,11 +475,11 @@ function followBusAlongRoute!(frg::FullRoutingGraph, flows::Dict, yardNode::Int)
     return schools, routes
 end
 
-function routeBuses!(data::SchoolBusData)
+function routeBuses!(data::SchoolBusData; args...)
     sg = buildScenarioGraph(data)
-    data.usedScenario = selectScenario(data, sg, OutputFlag=0)
+    data.usedScenario = selectScenario(data, sg; args...)
     frg = buildFullRoutingGraph(data, data.usedScenario)
-    data.buses = solveFullRouting(data, frg, OutputFlag=0)
+    data.buses = solveFullRouting(data, frg; args...)
     data.withFinalBuses = true
     return data
 end

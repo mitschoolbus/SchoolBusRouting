@@ -454,7 +454,7 @@ function bestRoutes(data::SchoolBusData, schoolID::Int, routes::FeasibleRouteSet
     # The binaries, whether we choose the routes
     @variable(model, r[k in 1:length(routes.list)], Bin)
     # Minimize the number of buses first, then the travel time
-    @objective(model, Min, sum(r[k] * λ + routes.list[k].cost for k in 1:length(routes.list)))
+    @objective(model, Min, sum(r[k] * (λ + routes.list[k].cost) for k in 1:length(routes.list)))
     # At least one route per stop
     @constraint(model, stopServed[i in 1:length(data.stops[schoolID])],
         sum(r[k] for k in routes.atStop[i]) >= 1)

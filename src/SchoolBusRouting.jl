@@ -17,5 +17,6 @@ include("problem.jl")
 include("load.jl")
 include("scenarios.jl")
 include("selection.jl")
+include("tests.jl")
 
 end

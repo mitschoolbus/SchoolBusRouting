@@ -6,11 +6,9 @@
 
 using SchoolBusRouting, JLD
 
-PATH = "/Users/arthurdelarue/Dropbox\ (MIT)/SchoolBuses/Data/Synthetic-benchmarks/SBRP_Benchmark";
+PATH = "/Path/to/data/folder"
 data = SchoolBusRouting.loadSyntheticBenchmark("$PATH/RSRB/RSRB03/schools.txt",
-                                               "$PATH/RSRB/RSRB03/stops.txt",
-                                               spreadStart = true, maxEffect=5000.);
-#data = JLD.load("$PATH/Data/RSRB03-2700.0.jld", "data")
+                                               "$PATH/RSRB/RSRB03/stops.txt");
 
 data.params.max_time_on_bus = 2700.;
 λs = [1e2, 5e2, 5e3, 1e4, 5e4, 1e5];
