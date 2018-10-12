@@ -31,7 +31,7 @@ for experiment in experiments, maxtime in maxtimes
                                                           nIterations=80) for λ in λs]
         end
     else
-        if experiment == "RSRB01"
+        if experiment in ["RSRB01", "CSCB02"]
             λs = [5e2, 5e3, 1e4, 5e4, 1e5, 2e5, 3e5, 4e5, 5e5, 1e4, 1e4, 1e4, 1e4, 1e4, 1e4, 1e4]
             params = [SchoolBusRouting.ScenarioParameters(maxRouteTimeLower=2000,
                                                           maxRouteTimeUpper=7000,
