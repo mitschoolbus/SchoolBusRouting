@@ -4,7 +4,6 @@
 ## Authors: Arthur Delarue, Sébastien Martin, 2018
 ###################################################
 
-
 """
 	Check feasibility of solution
 """
