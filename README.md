@@ -12,6 +12,4 @@ Once the `SchoolBusRouting` directory is in the `~/julia/v0.6` directory, you ca
 
 Reproducing the results from the article can be done by running the code in `examples/pnas.jl`.
 
-If you use any of this code in your research, please cite our article!
-
-Authors: Dimitris Bertsimas, Arthur Delarue, Sebastien Martin
+Authors: Arthur Delarue, Sebastien Martin
