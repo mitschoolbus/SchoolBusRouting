@@ -9,20 +9,25 @@
     Select the time that is the closest to `time` and return the euclidian travel-time
     for the corresponding speed.
 """
-function traveltime(data::SchoolBusData, o::LatLon, d::LatLon)
-    return distance(o,d) / data.params.velocity
+function traveltime(data::SchoolBusData, o::Point, d::Point)
+    if data.params.metric == MANHATTAN
+        return manhattandistance(o,d) / data.params.velocity
+    else
+        return euclideandistance(o,d) / data.params.velocity
+    end
 end
 
 """
-    Distance between two latlon points, in meters
+    Manhattan Distance between two points, in meters
 """
-function distance(o::LatLon, d::LatLon)
-    dLat = (d.lat - o.lat) * π / 180.0
-    dLon = (d.lon - o.lon) * π / 180.0
-    lat1 = (o.lat) * π / 180.0
-    lat2 = (d.lat) * π / 180.0
-    a = sin(dLat/2)^2 + sin(dLon/2)^2 * cos(lat1) * cos(lat2)
-    2.0 * atan2(sqrt(a), sqrt(1-a)) * 6373.0 * 1000
+function manhattandistance(o::Point, d::Point)
+    return abs(o.x - d.x) + abs(o.y - d.y)
+end
+"""
+    Euclidean distance between two points, in meters
+"""
+function euclideandistance(o::Point, d::Point)
+    return sqrt((o.x - d.x) ^ 2 + (o.y - d.y) ^ 2)
 end
 
 traveltime(data::SchoolBusData, o::Yard, d::Stop) = traveltime(data, o.position, d.position)
@@ -50,7 +55,7 @@ end
     Get the maximum allowed travel time for a given bus stop
 """
 function maxTravelTime(data::SchoolBusData, stop::Stop)
-	return data.params.max_time_on_bus
+    return data.params.max_time_on_bus
 end
 
 """
@@ -100,7 +105,7 @@ function greedy(data::SchoolBusData, schoolID::Int, maxRouteTime::Float64)
             bestTimeDiff = Inf
             for stopID in collect(1:length(availableStops))[availableStops]
                 if (data.stops[schoolID][stopID].nStudents + currentState.nStudents <=
-                	data.params.bus_capacity)
+                    data.params.bus_capacity)
                     insertId, timeDiff = bestInsertion(data, schoolID, stopID, currentState,
                                                        maxRouteTime)
                     if timeDiff < bestTimeDiff
@@ -289,26 +294,26 @@ function sumIndividualTravelTimes(data::SchoolBusData, schoolID::Int, r::Route)
     return t
 end
 function sumIndividualTravelTimes(data::SchoolBusData, schoolID::Int,
-								  routes::Vector{Route})
+                                  routes::Vector{Route})
     return sum(sumIndividualTravelTimes(data, schoolID, route) for route in routes)
 end
 
 """
     Returns the total travel time from the time the first student enters the bus to the time of pickup/dropoff in school
 """
-function serviceTime(data::SchoolBusData, schoolID::Int, r::Route)
+function serviceTime(data::SchoolBusData, schoolID::Int, stoplist::Vector{Int})
     allStops = data.stops[schoolID]
-    numStops = length(r.stops)
-    t = traveltime(data, allStops[r.stops[numStops]], data.schools[schoolID])
+    numStops = length(stoplist)
+    t = traveltime(data, allStops[stoplist[numStops]], data.schools[schoolID])
     while numStops > 1
-        t += (traveltime(data, allStops[r.stops[numStops-1]], allStops[r.stops[numStops]]) +
-              stopTime(data, allStops[r.stops[numStops]]))
+        t += (traveltime(data, allStops[stoplist[numStops-1]], allStops[stoplist[numStops]]) +
+              stopTime(data, allStops[stoplist[numStops]]))
         numStops -= 1
     end
-    t += stopTime(data, allStops[r.stops[1]])
+    t += stopTime(data, allStops[stoplist[1]])
     return t
 end
-
+serviceTime(data::SchoolBusData, schoolID::Int, r::Route) = serviceTime(data, schoolID, r.stops)
 
 """
     Simple route representation : just list of IDs and associated cost
@@ -483,7 +488,7 @@ function buildSolution(data::SchoolBusData, schoolID::Int,
             end
         end
     end
-    return [Route(i, fr.stopIds) for (i, fr) in enumerate(routes)]
+    return [Route(i, fr.stopIds) for (i, fr) in enumerate(routes) if length(fr.stopIds) > 0]
 end
 
 """
@@ -510,7 +515,7 @@ end
 function deletionCost(data::SchoolBusData, schoolID::Int,
                       route::FeasibleRoute, stopId::Int)
     stop = findfirst(route.stopIds, stopId)
-    length(route.stopIds) <= 1 && error("The route should at least have two stops")
+    length(route.stopIds) <= 1 && return (-Inf)
     stops = data.stops[schoolID]
     school = data.schools[schoolID]
     # remove travel time of that particular stop
@@ -564,37 +569,37 @@ function ScenarioParameters(;maxRouteTimeLower=Inf,
 end
 
 """
-	Compute scenario
+    Compute scenario
 """
-function getscenario(data, scenarioinfo)
+function getscenario(data, scenarioinfo; args...)
     school, scenarioid, params = scenarioinfo
     routes = greedyCombinedIterated(data, school.id,
                                     params.maxRouteTimeLower, params.maxRouteTimeUpper,
                                     params.nGreedy, params.nIterations, params.λ;
-                                    verbose=false, OutputFlag=0, TimeLimit=300)
+                                    verbose=false, args...)
     return Scenario(school.id, scenarioid, collect(eachindex(routes))), routes
 end
 
 """
-	Compute multiple scenarios
+    Compute multiple scenarios
 """
-function computescenarios(data, params)
+function computescenarios(data, params; args...)
     tocompute = shuffle!(vec([(school,paramid,param) for school in data.schools, (paramid,param) in enumerate(params)]))
     results = Tuple{Scenario,Vector{Route}}[]
     @showprogress for scenarioinfo in tocompute
-        push!(results, getscenario(data, scenarioinfo))
+        push!(results, getscenario(data, scenarioinfo; args...))
     end
     return results
 end
-function computescenariosparallel(data, params)
+function computescenariosparallel(data, params; args...)
     tocompute = shuffle!(vec([(school,paramid,param) for school in data.schools, (paramid,param) in enumerate(params)]))
     results = Tuple{Scenario,Vector{Route}}[]
-    results = pmap(x->getscenario(data,x), tocompute)
+    results = pmap(x->getscenario(data,x;args...), tocompute)
     return results
 end
 
 """
-	Put the scenarios together
+    Put the scenarios together
 """
 function loadroutingscenarios!(data, scenariolist)
     scenarios = [Scenario[] for school in data.schools]
@@ -602,7 +607,7 @@ function loadroutingscenarios!(data, scenariolist)
     ids = vec([(scenario.school, scenario.id) for (scenario, routelist) in scenariolist])
 
     for k in sortperm(ids)
-    	(scenario, routelist) = scenariolist[k]
+        (scenario, routelist) = scenariolist[k]
         for (i,route) in enumerate(routelist)
             idx = findfirst(x -> x.stops == route.stops, routes[scenario.school])
             if idx == 0 # need to add new route and update its id

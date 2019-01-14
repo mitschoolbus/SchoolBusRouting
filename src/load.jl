@@ -9,24 +9,8 @@
         Assumes a random center
 """
 function parseCoordinates(x::Real, y::Real; center="Default")
-    # convert weird units to meters centered at the correct place
-    x = (x - 105_600) * 0.3048
-    y = (y - 105_600) * 0.3048
-    # convert planar coordinates to latitude and longitude at some arbitrary location
-    clon, clat = getMapCenter(name=center)
-    CENTER = LLA(clon, clat, 0.)
-    point = LLAfromENU(CENTER, wgs84)(ENU(x, y, 0.))
-    return LatLon(point.lat, point.lon)
-end
-
-"""
-    Convert LatLon to x and y (ENU), given a center
-"""
-function convertLatLon(position::LatLon; center="Default")
-    clon, clat = getMapCenter(name=center)
-    CENTER = LLA(clon, clat, 0.)
-    point = ENUfromLLA(CENTER, wgs84)(LLA(position.lat, position.lon, 0.))
-    return point.e, point.n
+    # for these benchmarks we'll keep the weird units
+    return Point(x, y)
 end
 
 """
@@ -61,17 +45,18 @@ function loadSchoolsReduced(schoolsFileName::AbstractString,
         id = length(schools) + 1
         originalId = get(schoolData[i, :ID])
         position = parseCoordinates(get(schoolData[i, :X]), get(schoolData[i, :Y]))
-        dwelltime = 150.
+        dwelltime = 154.4
         intervalStart = parseTime(get(schoolData[i, :AMEARLY]))
         intervalEnd = parseTime(get(schoolData[i, :AMLATE]))
         if randomStart # randomly select start time in allowed window
-            starttime = intervalStart + (intervalEnd-intervalStart)*rand() + dwelltime
+            starttime = intervalStart + (intervalEnd-intervalStart)*rand()
         elseif spreadStart
-            starttime = arrivalTimes[i] + dwelltime
+            starttime = arrivalTimes[i]
         else
-            starttime = intervalStart + dwelltime
+            starttime = intervalStart
         end
-        push!(schools, School(id, originalId, position, dwelltime, starttime))
+        push!(schools, School(id, originalId, position, dwelltime, starttime,
+                              intervalStart, intervalEnd))
     end
     return schools
 end
@@ -79,17 +64,20 @@ end
 function spreadBellTimes(schoolData::DataFrame, maxEffect::Real)
     intervalStart = [parseTime(get(schoolData[i,:AMEARLY])) for i=1:nrow(schoolData)]
     intervalEnd = [parseTime(get(schoolData[i,:AMLATE])) for i=1:nrow(schoolData)]
-    model = Model(solver=GurobiSolver(OutputFlag=0))
-    @variable(model, intervalStart[i] <= belltime[i=1:nrow(schoolData)] <= intervalEnd[i])
-    # distances
-    @variable(model, 0 <= d[i=1:nrow(schoolData), j=1:nrow(schoolData)] <= 
-                     maximum(intervalEnd)-minimum(intervalStart))
-    @constraint(model, [i=1:nrow(schoolData), j=1:nrow(schoolData);
-                        0 < intervalStart[j] - intervalEnd[i] < maxEffect],
-                d[i,j] <= belltime[j] - belltime[i])
-    @objective(model, Max, sum(d))
-    solve(model)
-    return getvalue(belltime)
+    intervalStart = 7.5 * 3600 + 2 * (intervalStart - minimum(intervalStart))/
+    							 (maximum(intervalStart) - minimum(intervalStart))
+    return intervalStart
+    # model = Model(solver=GurobiSolver(OutputFlag=0))
+    # @variable(model, intervalStart[i] <= belltime[i=1:nrow(schoolData)] <= intervalEnd[i])
+    # # distances
+    # @variable(model, 0 <= d[i=1:nrow(schoolData), j=1:nrow(schoolData)] <= 
+    #                  maximum(intervalEnd)-minimum(intervalStart))
+    # @constraint(model, [i=1:nrow(schoolData), j=1:nrow(schoolData);
+    #                     0 < intervalStart[j] - intervalEnd[i] < maxEffect],
+    #             d[i,j] <= belltime[j] - belltime[i])
+    # @objective(model, Max, sum(d))
+    # solve(model)
+    # return getvalue(belltime)
 end
 
 """
@@ -132,7 +120,8 @@ function loadSyntheticBenchmark(schoolsFile::AbstractString, stopsFile::Abstract
     data.params.max_time_on_bus                      = 2700.
     data.params.constant_stop_time                   = 19.
     data.params.stop_time_per_student                = 2.6
-    data.params.velocity                             = 20 * 0.44704
+    data.params.velocity                             = 29.3333333#20 * 0.44704
+    data.params.metric                               = MANHATTAN
     data.withBaseData = true
     return data
 end

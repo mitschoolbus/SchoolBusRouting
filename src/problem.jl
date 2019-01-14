@@ -4,6 +4,8 @@
 ## Authors: Arthur Delarue, Sébastien Martin, 2018
 ###################################################
 
+@enum Metric MANHATTAN EUCLIDEAN
+
 """
     Set of parameters, with their documentation.
 """
@@ -16,6 +18,8 @@ mutable struct SchoolBusParameters
     constant_stop_time::Float64
     "stop time per student"
     stop_time_per_student::Float64
+    "distance metric"
+    metric::Metric
     "vehicle speed"
     velocity::Float64
     SchoolBusParameters() = new()
@@ -27,21 +31,22 @@ end
 function defaultParameters()
     params = SchoolBusParameters()
     params.bus_capacity                         = 66
-    params.max_time_on_bus                      = 2700.
+    params.max_time_on_bus                      = 3600.
     params.constant_stop_time                   = 30.
     params.stop_time_per_student                = 5.
     params.velocity                             = 20 * 0.44704 # 20 mph
+    params.metric                               = MANHATTAN
     return params
 end
 
 """
     Contains a latitude and a longitude
 """
-struct LatLon
+struct Point
     "the latitude"
-    lat::Float32
+    x::Float64
     "the longitude"
-    lon::Float32
+    y::Float64
 end
 
 """
@@ -53,11 +58,15 @@ struct School
     "Unique school identifier from data"
     originalId::Int
     "School position"
-    position::LatLon
+    position::Point
     "the bus dwell time (drop-off time)"
     dwelltime::Float64
     "School Start Time (in seconds from midnight): time at which buses finish drop-off"
     starttime::Float64
+    "Time window start"
+    start_tw::Float64
+    "Time window end"
+    end_tw::Float64
 end
 Base.show(io::IO, school::School) = print(io, "School $(school.id) - $(school.originalId)")
 
@@ -68,7 +77,7 @@ struct Yard
     "Yard id"
     id::Int
     "Yard location"
-    position::LatLon
+    position::Point
 end
 Base.show(io::IO, yard::Yard) = print(io, "Bus Yard $(yard.id)")
 
@@ -86,7 +95,7 @@ struct Stop
     "School that corresponds to the stop"
     schoolId::Int
     "Position"
-    position::LatLon
+    position::Point
     "Number of students"
     nStudents::Int
 end
@@ -175,7 +184,9 @@ end
 
 function Base.show(io::IO, data::SchoolBusData)
     println(io, "School Bus Data")
-    data.withBaseData && @printf(io, "- With %d schools.\n", length(data.schools))
+    data.withBaseData && @printf(io, "- With %d schools: %.1f stops/school.\n",
+                                 length(data.schools),
+                                 mean(length(stoplist) for stoplist in data.stops))
     data.withRoutingScenarios && @printf(io, "- With routing scenarios computed: %.1f/school.\n",
                                 mean(length(scenarioList) for scenarioList in data.scenarios))
     data.withFinalBuses && @printf(io, "- With %d buses assigned.\n", length(data.buses))
@@ -188,17 +199,6 @@ function updateStartTimes!(data::SchoolBusData, starttimes)
     data.schools = [School(school.id, school.originalId, school.position, school.dwelltime,
                            starttimes[i]) for (i, school) in enumerate(data.schools)]
     return data
-end
-
-"""
-    Get center of map (for 2d projection)
-"""
-function getMapCenter(;name::AbstractString="Default")
-    if name == "Default"
-        return (39.1836, -96.5717) # Manhattan, KS
-    else
-        error("Not implemented")
-    end
 end
 
 getthreads() = haskey(ENV, "SLURM_JOB_CPUS_PER_NODE") ? parse(Int, ENV["SLURM_JOB_CPUS_PER_NODE"]) : 0
