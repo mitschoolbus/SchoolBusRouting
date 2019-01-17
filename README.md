@@ -27,4 +27,4 @@ We also provide a way to graphically visualize school bus routing problems and s
 
 If you use any of this code in your research, please cite our article!
 
-Authors: Dimitris Bertsimas, Arthur Delarue, Sebastien Martin
+Authors: Arthur Delarue, Sebastien Martin
