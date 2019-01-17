@@ -25,6 +25,6 @@ As part of this package, we also provide code to generate synthetic benchmarks f
 
 We also provide a way to graphically visualize school bus routing problems and solutions. See `docs/visualization.md` for more details.
 
-If you use any of this code in your research, please cite our article!
-
 Authors: Arthur Delarue, Sebastien Martin
+
+License: MIT License
